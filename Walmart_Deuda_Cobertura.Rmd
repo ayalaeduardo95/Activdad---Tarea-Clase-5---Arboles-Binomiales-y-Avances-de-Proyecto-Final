@@ -1,0 +1,382 @@
+---
+title: "Walmart Inc.: Estructura de deuda y estrategia de cobertura"
+subtitle: "Productos Derivados y Administración de Riesgos Corporativos · Avance de Proyecto Final"
+author: "Equipo 6 · Grupo 40 · Mariann Antonelli Morales Tobias, Eduardo Ayala Saldaña, Ulises Salinas López"
+date: "Datos al 23 de octubre de 2026 · Fuente: LSEG Workspace"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    df_print: paged
+    code_folding: hide
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(plotly)
+library(knitr)
+library(scales)
+
+asof <- as.Date("2026-10-23")
+
+# Paleta por divisa
+pal <- c(USD = "#2a78d6", GBP = "#eb6834", CAD = "#1baf7a", Otras = "#898781")
+
+# Formatos
+fmt_b  <- function(x) sprintf("$%.2f B", x / 1e9)
+fmt_m  <- function(x) paste0("$", comma(round(x / 1e6)), " M")
+```
+
+```{r css, echo=FALSE, results='asis'}
+cat('
+<style>
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0}
+.tile{border:1px solid #e1e0d9;border-radius:10px;padding:14px 16px;background:#fcfcfb}
+.tile .k{color:#898781;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.tile .v{font-size:26px;font-weight:650;margin:4px 0 0}
+.tile .d{color:#52514e;font-size:13px}
+.note{border-left:3px solid #2a78d6;background:rgba(42,120,214,.08);padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+</style>')
+```
+
+# Datos
+
+Las 53 emisiones vigentes de Walmart (notas; se excluye el papel comercial). Los montos (`out`, `issd`) están en dólares equivalentes. `out` es el monto vigente y `issd` el monto emitido originalmente.
+
+```{r datos}
+csv <- "isin,cur,cpn,mat,iss,out,issd,ytm,z,px,call
+US931142CH46,USD,5.875,2027-04-05,2007-04-05,372861000,750000000,4.398415,11.611787,100.6332,No
+US931142FM04,USD,4.18213,2027-04-28,2025-04-28,750000000,750000000,4.154801,NA,100.12,No
+US931142FL21,USD,4.1,2027-04-28,2025-04-28,750000000,750000000,4.485411,17.887338,99.8092,No
+XS1645684314,JPY,0.52,2027-07-16,2017-07-18,382750701,382750701,2.006729,54.042996,98.943,No
+US931142EX77,USD,3.95,2027-09-09,2022-09-09,1000000000,1000000000,4.722754,31.289145,99.3448,Yes
+US931142FB49,USD,3.9,2028-04-15,2023-04-18,750000000,750000000,4.746681,16.360237,98.8105,Yes
+US931142EE96,USD,3.7,2028-06-26,2018-06-27,1479335000,2750000000,4.809833,18.644667,98.2378,Yes
+US931142ES82,USD,1.5,2028-09-22,2021-09-22,1250000000,1250000000,4.746008,5.622194,94.1507,Yes
+US931142FR90,USD,4.15576,2029-04-30,2026-04-30,350000000,350000000,4.377582,NA,99.9959,No
+US931142FS73,USD,4.0,2029-04-30,2026-04-30,650000000,650000000,4.891711,14.862138,97.9162,Yes
+US931142EN95,USD,3.25,2029-07-08,2019-04-23,732761000,1250000000,4.894291,14.035488,95.8834,Yes
+XS0453133950,EUR,4.875,2029-09-21,2009-09-21,1120197154,1120197154,3.551886,47.680505,103.58,No
+US931142EQ27,USD,2.375,2029-09-24,2019-09-24,319119000,500000000,4.917939,15.907403,93.1783,Yes
+US931142GE78,USD,5.05,2029-10-23,2026-10-23,750000000,750000000,4.934471,18.000648,100.3172,Yes
+US931142BF98,USD,7.55,2030-02-15,2000-02-15,469208000,1000000000,4.982338,21.870971,107.7201,No
+US931142FC22,USD,4.0,2030-04-15,2023-04-18,500000000,500000000,4.977616,21.291041,96.9185,Yes
+US931142FN86,USD,4.35,2030-04-28,2025-04-28,1000000000,1000000000,4.951844,18.366444,98.0845,Yes
+CA931142FX60,CAD,4.15,2030-10-23,2026-10-23,535408338,535408338,4.016101,51.887606,100.489,Yes
+XS0121617517,GBP,5.75,2030-12-19,2000-12-19,668601152,668601152,5.158618,23.349877,102.174,No
+US931142FT56,USD,4.15,2031-04-30,2026-04-30,1000000000,1000000000,5.018596,22.167583,96.5316,Yes
+US931142ET65,USD,1.8,2031-09-22,2021-09-22,2000000000,2000000000,4.994091,17.409035,86.2521,Yes
+US931142GB30,USD,5.15,2031-10-23,2026-10-23,500000000,500000000,5.092414,27.708484,100.2505,Yes
+US931142EY50,USD,4.15,2032-09-09,2022-09-09,1250000000,1250000000,5.02545,16.830366,95.5925,Yes
+US931142FD05,USD,4.1,2033-04-15,2023-04-18,1500000000,1500000000,5.197418,31.143413,94.0341,Yes
+US931142FU20,USD,4.45,2033-04-30,2026-04-30,1250000000,1250000000,5.23102,34.696426,95.7362,Yes
+CA931142FY44,CAD,4.45,2033-10-23,2026-10-23,1427755568,1427755568,4.313001,69.974944,100.819,Yes
+US931142GF44,USD,5.35,2033-10-23,2026-10-23,1000000000,1000000000,5.255351,35.595941,100.5473,Yes
+XS0419834931,GBP,5.625,2034-03-27,2009-03-27,1337202305,1337202305,5.60344,38.882273,100.124,No
+US931142FP35,USD,4.9,2035-04-28,2025-04-28,1500000000,1500000000,5.353881,39.834196,96.9309,Yes
+US931142CB75,USD,5.25,2035-09-01,2005-08-31,1332756000,2500000000,5.39049,42.115797,99.0143,No
+XS0202077953,GBP,5.25,2035-09-28,2004-09-29,1092832595,1337202305,5.69138,37.839903,96.941,No
+US931142FV03,USD,4.75,2036-04-30,2026-04-30,1000000000,1000000000,5.437488,44.586706,94.9462,Yes
+US931142GC13,USD,5.55,2036-10-23,2026-10-23,750000000,750000000,5.501197,49.658862,100.3707,Yes
+US931142CK74,USD,6.5,2037-08-15,2007-08-24,1037829000,3000000000,5.478642,44.431368,108.2346,No
+US931142CM31,USD,6.2,2038-04-15,2008-04-15,803185000,2000000000,5.56328,50.376238,105.3432,No
+US931142EB57,USD,3.95,2038-06-28,2018-06-27,575138000,1500000000,5.393834,30.888847,87.6078,Yes
+CA931142FZ19,CAD,4.95,2038-10-23,2026-10-23,1249286122,1249286122,4.832777,92.588341,101.057,Yes
+XS0279211832,GBP,4.875,2039-01-19,2006-12-19,494278111,1337202305,5.980452,46.337879,90.499,No
+US931142CS01,USD,5.625,2040-04-01,2010-04-01,609010000,1250000000,5.666471,52.211445,99.609,No
+US931142CV30,USD,4.875,2040-07-08,2010-07-08,276218000,750000000,5.86652,70.477779,90.7443,No
+US931142CY78,USD,5.0,2040-10-25,2010-10-25,393460000,1250000000,5.517487,34.499522,94.999,No
+US931142DB66,USD,5.625,2041-04-15,2011-04-18,613035000,2000000000,5.585084,40.044127,100.3904,No
+US931142EU39,USD,2.5,2041-09-22,2021-09-22,1000000000,1000000000,5.72145,47.414817,67.9794,Yes
+US931142DG53,USD,4.0,2043-04-11,2013-04-11,413461000,1000000000,5.891421,60.747647,80.2397,Yes
+US931142DK65,USD,4.75,2043-10-02,2013-10-02,231195000,750000000,6.056923,77.102434,86.2742,Yes
+US931142DQ36,USD,4.3,2044-04-22,2014-04-22,329523000,1000000000,5.767626,45.227985,83.9668,Yes
+US931142DW04,USD,3.625,2047-12-15,2017-10-20,433560000,1000000000,5.83765,44.007488,73.3246,Yes
+US931142EC31,USD,4.05,2048-06-29,2018-06-27,1682681000,3000000000,5.915136,52.973383,77.3744,Yes
+US931142EP44,USD,2.95,2049-09-24,2019-09-24,628527000,1000000000,5.949322,54.816188,62.7413,Yes
+US931142EV12,USD,2.65,2051-09-22,2021-09-22,1500000000,1500000000,5.899957,51.247734,57.8576,Yes
+US931142EZ26,USD,4.5,2052-09-09,2022-09-09,1000000000,1000000000,5.925426,57.585063,81.2486,Yes
+US931142FE87,USD,4.5,2053-04-15,2023-04-18,1500000000,1500000000,5.882608,53.741365,81.5606,Yes
+CA931142GA58,CAD,5.25,2056-10-23,2026-10-23,356938892,356938892,5.110966,100.885993,102.121,Yes"
+
+bonds <- read.csv(text = csv, stringsAsFactors = FALSE) |>
+  mutate(
+    mat  = as.Date(mat),
+    iss  = as.Date(iss),
+    yrs  = round(as.numeric(mat - asof) / 365.25, 2),
+    grp  = ifelse(cur %in% c("USD", "GBP", "CAD"), cur, "Otras"),
+    mv   = out * px / 100,                       # valor de mercado
+    disc = out * (100 - px) / 100,               # descuento vs. par
+    ret  = round((1 - out / issd) * 100, 1)      # % del monto emitido ya retirado
+  )
+
+# Estadísticos globales
+st <- list(
+  out    = sum(bonds$out),
+  issd   = sum(bonds$issd),
+  mv     = sum(bonds$mv),
+  wcpn   = weighted.mean(bonds$cpn, bonds$out),
+  wytm   = weighted.mean(bonds$ytm, bonds$out),
+  wyrs   = weighted.mean(bonds$yrs, bonds$out),
+  nonusd = sum(bonds$out[bonds$cur != "USD"])
+)
+st$ret    <- st$issd - st$out
+st$retpct <- st$ret / st$issd * 100
+st$disc   <- st$out - st$mv
+st$discpct <- st$disc / st$out * 100
+st$gap    <- (st$wytm - st$wcpn) * 100          # puntos base
+
+nuevas <- bonds |> filter(iss == as.Date("2026-10-23"))
+```
+
+# Tesis: el caso Molson Coors, pero doce veces más grande
+
+Walmart cotiza en Nasdaq como `WMT.O`, tiene calificación de grado de inversión y deuda neta de 1.01× EBITDA. Por costo de fondeo no necesita un convertible: su spread de crédito promedio es de `r round(weighted.mean(bonds$z, bonds$out, na.rm = TRUE))` puntos base. Pero sí enfrenta la misma decisión que Molson Coors en 2007: refinanciar deuda barata que vence en un entorno de tasas más alto, y cubrir el riesgo que eso genera.
+
+```{r tiles, results='asis', echo=FALSE}
+tile <- function(k, v, d) sprintf('<div class="tile"><div class="k">%s</div><div class="v">%s</div><div class="d">%s</div></div>', k, v, d)
+cat('<div class="tiles">',
+    tile("Deuda vigente",   fmt_b(st$out), sprintf("%d emisiones, valor facial", nrow(bonds))),
+    tile("Valor de mercado", fmt_b(st$mv),  sprintf("%.1f%% bajo par", st$discpct)),
+    tile("Cupón ponderado",  sprintf("%.2f%%", st$wcpn), "costo contractual"),
+    tile("YTM ponderado",    sprintf("%.2f%%", st$wytm), "costo marginal hoy"),
+    tile("Brecha",           sprintf("+%.0f pb", st$gap), "repreciación pendiente"),
+    tile("Vida promedio",    sprintf("%.1f años", st$wyrs), "ponderada por monto"),
+    '</div>')
+```
+
+<div class="note">
+**Hace tres días Walmart emitió `r fmt_b(sum(nuevas$out))`** en `r nrow(nuevas)` tramos: cuatro en dólares y cuatro en dólares canadienses (C$5,000 millones en total). La fecha de emisión, 23 de octubre de 2026, coincide con el corte de precios de este análisis. El proyecto deja de ser hipotético: analizamos una operación de financiamiento real, con la información de mercado del día en que se colocó.
+</div>
+
+# Escalera de vencimientos
+
+Perfil de amortización por año y divisa, en millones de dólares equivalentes. El máximo anual es de `r percent(max(tapply(bonds$out, format(bonds$mat, "%Y"), sum)) / st$out, accuracy = 0.1)` del total.
+
+```{r escalera}
+esc <- bonds |>
+  mutate(anio = format(mat, "%Y")) |>
+  group_by(anio, grp) |>
+  summarise(mm = sum(out) / 1e6, .groups = "drop")
+
+plot_ly(esc, x = ~anio, y = ~mm, color = ~grp, colors = pal, type = "bar",
+        hovertemplate = "<b>%{x}</b> · %{fullData.name}<br>%{y:,.0f} M USD-eq<extra></extra>") |>
+  layout(barmode = "stack",
+         xaxis = list(title = "", type = "category"),
+         yaxis = list(title = "", ticksuffix = " M"),
+         legend = list(orientation = "h", y = 1.12))
+```
+
+# Composición por divisa
+
+`r fmt_b(st$nonusd)` (el `r round(st$nonusd / st$out * 100, 1)`% de la deuda vigente) está denominado en divisas distintas al dólar. Esa es la exposición cambiaria estructural, independiente de la operativa.
+
+```{r divisas}
+cdiv <- bonds |>
+  group_by(grp) |>
+  summarise(mm = sum(out) / 1e6, .groups = "drop") |>
+  arrange(mm) |>
+  mutate(grp = factor(grp, levels = grp))
+
+plot_ly(cdiv, x = ~mm, y = ~grp, type = "bar", orientation = "h",
+        color = ~grp, colors = pal,
+        text = ~paste0("$", comma(round(mm)), " M"), textposition = "outside",
+        hovertemplate = "%{y}: %{x:,.0f} M<extra></extra>") |>
+  layout(showlegend = FALSE,
+         xaxis = list(visible = FALSE, range = c(0, max(cdiv$mm) * 1.2)),
+         yaxis = list(title = ""),
+         margin = list(r = 90))
+```
+
+```{r divisas-tabla}
+bonds |>
+  group_by(cur) |>
+  summarise(emisiones = n(), monto_USD_M = sum(out) / 1e6, .groups = "drop") |>
+  arrange(desc(monto_USD_M)) |>
+  mutate(pct = percent(monto_USD_M * 1e6 / st$out, accuracy = 0.1),
+         monto_USD_M = comma(round(monto_USD_M))) |>
+  kable(col.names = c("Divisa", "Emisiones", "Monto (M USD-eq)", "% del total"), align = "lrrr")
+```
+
+# La emisión del 23 de octubre de 2026
+
+```{r emision}
+nuevas |>
+  arrange(mat, cur) |>
+  transmute(
+    Cupón = sprintf("%.2f%%", cpn),
+    Vencimiento = format(mat, "%d %b %Y"),
+    Moneda = cur,
+    `Monto USD-eq` = fmt_m(out),
+    YTM = sprintf("%.3f%%", ytm),
+    `Z-spread` = sprintf("%.1f pb", z),
+    ISIN = isin
+  ) |>
+  kable(align = "rllrrrl")
+```
+
+```{r arbitraje, include=FALSE}
+u33 <- nuevas |> filter(cur == "USD", mat == as.Date("2033-10-23"))
+c33 <- nuevas |> filter(cur == "CAD", mat == as.Date("2033-10-23"))
+dy  <- (u33$ytm - c33$ytm) * 100
+dz  <- u33$z - c33$z
+dcurva <- dy - dz   # diferencial de curva (UST - GoC) = diferencia de YTM menos diferencia de Z-spread
+```
+
+<div class="note">
+**El arbitraje de fondeo, aislado.** Los tramos a 2033 permiten una comparación limpia: mismo emisor, misma fecha de emisión, mismo vencimiento, dos divisas. El tramo en dólares rinde **`r sprintf("%.3f%%", u33$ytm)`** y el canadiense **`r sprintf("%.3f%%", c33$ytm)`**: una ventaja de **`r round(dy)` puntos base** por emitir en CAD. Pero los Z-spreads van al revés (`r round(u33$z, 1)` pb en USD contra `r round(c33$z, 1)` pb en CAD), lo que implica que la curva gubernamental canadiense está unos **`r round(dcurva)` pb** por debajo de la estadounidense. La ventaja es de curva, no de crédito.
+
+Walmart no tiene operación canadiense que justifique C$5,000 millones de pasivo. Levantó barato en una divisa que no necesita, lo cual obliga a un **cross-currency swap** para regresar la exposición a dólares. Ese es el primero de los instrumentos de cobertura a modelar.
+</div>
+
+# Curva de rendimiento de la deuda de Walmart
+
+Cada punto es una emisión vigente: rendimiento al vencimiento contra años restantes, al 23 de octubre de 2026. El tamaño refleja el monto vigente. La separación vertical entre los puntos azules (USD) y los verdes (CAD) es el diferencial de curva entre Estados Unidos y Canadá.
+
+```{r curva}
+plot_ly(bonds, x = ~yrs, y = ~ytm, color = ~grp, colors = pal,
+        type = "scatter", mode = "markers",
+        size = ~out, sizes = c(8, 34),
+        marker = list(opacity = .9, line = list(width = 2, color = "white")),
+        text = ~paste0("<b>", cur, " ", sprintf("%.2f", cpn), "%</b><br>vence ", mat,
+                       "<br>YTM ", sprintf("%.3f", ytm), "%",
+                       "<br>Z-spread ", ifelse(is.na(z), "n.d.", sprintf("%.1f pb", z)),
+                       "<br>", comma(round(out / 1e6)), " M vigente"),
+        hoverinfo = "text") |>
+  layout(xaxis = list(title = "Años al vencimiento"),
+         yaxis = list(title = "Rendimiento al vencimiento", ticksuffix = "%"),
+         legend = list(orientation = "h", y = 1.12),
+         annotations = list(
+           list(x = u33$yrs, y = u33$ytm, ax = 46, ay = -34,
+                text = sprintf("USD 2033<br>%.3f%%", u33$ytm), showarrow = TRUE),
+           list(x = c33$yrs, y = c33$ytm, ax = 46, ay = 34,
+                text = sprintf("CAD 2033<br>%.3f%%", c33$ytm), showarrow = TRUE)))
+```
+
+# La pared de refinanciamiento
+
+```{r pared-calc, include=FALSE}
+bajo <- bonds |> filter(cpn < 3)
+bajo_tot <- sum(bajo$out)
+bajo_cpn <- weighted.mean(bajo$cpn, bajo$out)
+usd_new  <- weighted.mean(nuevas$cpn[nuevas$cur == "USD"], nuevas$out[nuevas$cur == "USD"])
+costo_inc <- bajo_tot * (usd_new - bajo_cpn) / 100
+```
+
+Hay `r nrow(bajo)` emisiones con cupón inferior al 3%: `r fmt_b(bajo_tot)` al `r sprintf("%.2f%%", bajo_cpn)` promedio, colocadas entre 2017 y 2021. Refinanciarlas al `r sprintf("%.2f%%", usd_new)` (cupón ponderado de los tramos en dólares de la emisión reciente) implica un costo incremental del orden de **`r round(costo_inc / 1e6)` millones de dólares anuales**.
+
+```{r pared-tabla}
+bajo |>
+  arrange(mat) |>
+  transmute(Cupón = sprintf("%.2f%%", cpn),
+            Vencimiento = format(mat, "%d %b %Y"),
+            Emitido = format(iss, "%d %b %Y"),
+            Vigente = fmt_m(out),
+            Precio = sprintf("%.2f", px),
+            YTM = sprintf("%.3f%%", ytm)) |>
+  kable(align = "lllrrr")
+```
+
+Molson Coors ejecutó toda su estructura (convertible, call spread y T-lock) para ahorrar cerca de 15 millones de dólares anuales. La exposición de Walmart es un orden de magnitud mayor.
+
+# Walmart ya ejecuta el manual de Molson Coors
+
+De `r fmt_b(st$issd)` emitidos históricamente, quedan vigentes `r fmt_b(st$out)`: **`r fmt_b(st$ret)`, el `r round(st$retpct, 1)`%, ya fueron retirados**. Y el patrón de qué se retira no es aleatorio.
+
+```{r retiros}
+sz <- function(v) 8 + 26 * sqrt(v / 3e9)
+
+b4 <- bonds |>
+  mutate(periodo = ifelse(iss < as.Date("2022-01-01"),
+                          "Emitidos antes de 2022", "Emitidos 2022 en adelante"))
+
+plot_ly(b4, x = ~cpn, y = ~ret, color = ~periodo,
+        colors = c("#2a78d6", "#898781"),
+        type = "scatter", mode = "markers",
+        size = ~issd, sizes = c(8, 34),
+        marker = list(opacity = .9, line = list(width = 2, color = "white")),
+        text = ~paste0("<b>", sprintf("%.2f", cpn), "%</b> · vence ", mat,
+                       "<br>emitido ", comma(round(issd / 1e6)), " M → vigente ",
+                       comma(round(out / 1e6)), " M",
+                       "<br>retirado ", ret, "%"),
+        hoverinfo = "text") |>
+  layout(xaxis = list(title = "Cupón", ticksuffix = "%"),
+         yaxis = list(title = "% del monto emitido ya retirado",
+                      ticksuffix = "%", range = c(-6, 78)),
+         legend = list(orientation = "h", y = 1.12))
+```
+
+```{r retiros-tabla}
+rt <- bonds |>
+  filter(iss < as.Date("2022-01-01")) |>
+  mutate(rango = cut(cpn, c(-Inf, 3, 4.5, Inf), labels = c("Menor a 3%", "3% a 4.5%", "Mayor a 4.5%"),
+                     right = FALSE)) |>
+  group_by(rango) |>
+  summarise(emitido = sum(issd), vigente = sum(out), .groups = "drop") |>
+  mutate(retirado = 1 - vigente / emitido)
+
+rt |>
+  transmute(`Rango de cupón` = rango,
+            `Emitido (M)` = comma(round(emitido / 1e6)),
+            `Vigente (M)` = comma(round(vigente / 1e6)),
+            `% retirado` = percent(retirado, accuracy = 0.1)) |>
+  kable(align = "lrrr")
+```
+
+<div class="note">
+Entre las emisiones anteriores a 2022, Walmart ha retirado cerca de la **mitad** del papel con cupón superior al 3% (`r percent(rt$retirado[2], accuracy = 0.1)` en el rango de 3% a 4.5%, y `r percent(rt$retirado[3], accuracy = 0.1)` por encima de 4.5%), mientras que el papel con cupón inferior al 3% permanece prácticamente intacto: **solo `r percent(rt$retirado[1], accuracy = 0.1)` retirado**.
+
+Es exactamente el uso de fondos del caso Molson Coors, que destinó $465 millones a recomprar sus notas al 6.375%. Walmart lleva años aplicando la misma lógica. Nuestra propuesta no inventa una estrategia: extiende una que la empresa ya demostró preferir.
+</div>
+
+# Oportunidad de recompra
+
+Con tasas al alza, la deuda de cupón bajo cotiza muy por debajo de par. Recomprarla retira valor facial a descuento: **`r fmt_b(st$disc)`** de diferencia entre el facial vigente y su valor de mercado.
+
+```{r recompra-grafica}
+plot_ly(bonds, x = ~yrs, y = ~px, color = ~grp, colors = pal,
+        type = "scatter", mode = "markers",
+        size = ~out, sizes = c(8, 34),
+        marker = list(opacity = .9, line = list(width = 2, color = "white")),
+        text = ~paste0("<b>", cur, " ", sprintf("%.2f", cpn), "%</b><br>vence ", mat,
+                       "<br>precio ", sprintf("%.2f", px),
+                       "<br>descuento ", comma(round(disc / 1e6)), " M"),
+        hoverinfo = "text") |>
+  layout(shapes = list(list(type = "line", x0 = 0, x1 = 31, y0 = 100, y1 = 100,
+                            line = list(color = "#c3c2b7", width = 1.5, dash = "dot"))),
+         xaxis = list(title = "Años al vencimiento"),
+         yaxis = list(title = "Precio limpio"),
+         legend = list(orientation = "h", y = 1.12))
+```
+
+```{r recompra-tabla}
+bonds |>
+  arrange(desc(disc)) |>
+  slice_head(n = 8) |>
+  transmute(Cupón = sprintf("%.2f%%", cpn),
+            Vencimiento = format(mat, "%d %b %Y"),
+            Precio = sprintf("%.2f", px),
+            Facial = fmt_m(out),
+            Mercado = fmt_m(mv),
+            Descuento = fmt_m(disc)) |>
+  kable(align = "llrrrr")
+```
+
+# Pendientes de este avance
+
+- **Calificaciones crediticias** por emisor y por emisión, con outlook e historial.
+- **Nota de derivados del 10-K**: nocionales de swaps de tasa, cross-currency swaps y coberturas de inversión neta. Los campos correspondientes de LSEG vienen vacíos.
+- **Cadena de opciones de WMT** con volatilidad implícita y griegas, y serie de precios diaria para calcular volatilidad histórica.
+- **Curvas de tasas**: Tesoro y swap SOFR, para descontar el componente de bono recto.
+- **Valoración del convertible** y diseño del call spread.
+- **Verificar el gasto financiero** del trimestre a julio de 2026 contra el 10-Q: LSEG reporta $263 M contra ~$700 M en trimestres previos, con la deuda al alza.
+- **Corrida de emisiones vencidas** para documentar el bono de €650 M al 2.550% (abril 2026) y el de $1,250 M al 1.050% (septiembre 2026).
+
+---
+
+*Fuente: LSEG Workspace, Government and Corporate Bonds Advanced Search y Company Fundamentals, corte al 23 de octubre de 2026. Precio de la acción al cierre del 23 de octubre de 2026: USD 119.89. Papel comercial: 26 emisiones vigentes con vencimientos entre el 27 de octubre de 2026 y el 7 de enero de 2027, excluidas del análisis de notas. `r sum(bonds$call == "Yes")` de las `r nrow(bonds)` emisiones son redimibles anticipadamente (`r fmt_b(sum(bonds$out[bonds$call == "Yes"]))`).*
+
+*Documento académico elaborado por el Equipo 6 con fines didácticos. No constituye recomendación de inversión ni representa a Walmart Inc.*
